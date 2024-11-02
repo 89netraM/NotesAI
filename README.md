@@ -1,0 +1,3 @@
+# NotesAI
+
+It reads notes

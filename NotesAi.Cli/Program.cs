@@ -17,11 +17,13 @@ builder
         [new("ConnectionStrings:DocumentDatabase", @"Data Source=.\.notesai\documents.db")]
     )
     .AddJsonFile(@".\.notesai\appsettings.json", optional: true)
+    .AddUserSecrets<Program>()
     .AddEnvironmentVariables()
     .AddCommandLine(args);
 
 builder.Services.AddSqliteDocumentRepository();
 builder.Services.AddDocumentService();
+builder.Services.AddOpenAiServices();
 
 var app = builder.Build();
 

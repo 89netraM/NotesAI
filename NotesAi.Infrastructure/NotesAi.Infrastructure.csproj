@@ -10,6 +10,39 @@
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0-rc.2.24474.1" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.0-rc.2.24473.5" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="8.0.0" />
+    <PackageReference Include="OpenAI" Version="2.0.0" />
     <PackageReference Include="YamlDotNet" Version="16.1.3" />
   </ItemGroup>
+  <ItemGroup>
+    <VectorliteInfo Include="https://github.com/1yefuwang1/vectorlite/releases/download/v0.2.0/vectorlite_py-0.2.0-py3-none-win_amd64.whl">
+      <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+      <LibraryFile>vectorlite.dll</LibraryFile>
+    </VectorliteInfo>
+    <VectorliteInfo Include="https://github.com/1yefuwang1/vectorlite/releases/download/v0.2.0/vectorlite_py-0.2.0-py3-none-macosx_10_15_x86_64.whl">
+      <RuntimeIdentifier>osx-x64</RuntimeIdentifier>
+      <LibraryFile>vectorlite.dylib</LibraryFile>
+    </VectorliteInfo>
+    <VectorliteInfo Include="https://github.com/1yefuwang1/vectorlite/releases/download/v0.2.0/vectorlite_py-0.2.0-py3-none-macosx_11_0_arm64.whl">
+      <RuntimeIdentifier>osx-arm64</RuntimeIdentifier>
+      <LibraryFile>vectorlite.dylib</LibraryFile>
+    </VectorliteInfo>
+    <VectorliteInfo Include="https://github.com/1yefuwang1/vectorlite/releases/download/v0.2.0/vectorlite_py-0.2.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl">
+      <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+      <LibraryFile>vectorlite.so</LibraryFile>
+    </VectorliteInfo>
+  </ItemGroup>
+  <Target Name="DownloadVectorlite" BeforeTargets="PrepareForBuild" Outputs="%(VectorliteInfo.Identity)">
+    <DownloadFile SourceUrl="%(VectorliteInfo.Identity)" DestinationFolder="$(OutputPath)">
+      <Output TaskParameter="DownloadedFile" PropertyName="VectorliteArchive" />
+    </DownloadFile>
+    <Unzip SourceFiles="$(VectorliteArchive)" DestinationFolder="$(OutputPath)\Vectorlite-%(VectorliteInfo.RuntimeIdentifier)" OverwriteReadOnlyFiles="true" />
+    <Copy></Copy>
+    <ItemGroup>
+      <Content Include="$(OutputPath)\Vectorlite-%(VectorliteInfo.RuntimeIdentifier)\vectorlite_py\%(VectorliteInfo.LibraryFile)">
+        <Link>runtimes\%(VectorliteInfo.RuntimeIdentifier)\native\%(VectorliteInfo.LibraryFile)</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+    </ItemGroup>
+  </Target>
 </Project>

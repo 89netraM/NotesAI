@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,14 +8,22 @@ namespace NotesAi.Domain.Repositories;
 
 public interface IDocumentRepository
 {
-    public Task CreateDocument(Document document, CancellationToken cancellationToken);
+    public Task CreateDocument(
+        Document document,
+        IEnumerable<ReadOnlyMemory<float>> embeddings,
+        CancellationToken cancellationToken
+    );
 
     public IAsyncEnumerable<Document> ReadDocumentsWithNames(
         IEnumerable<string> documentNames,
         CancellationToken cancellationToken
     );
 
-    public Task<bool> UpdateDocument(Document document, CancellationToken cancellationToken);
+    public Task<bool> UpdateDocument(
+        Document document,
+        IEnumerable<ReadOnlyMemory<float>> embeddings,
+        CancellationToken cancellationToken
+    );
 
     public Task DeleteUnlistedDocumentsWithNames(
         IEnumerable<string> documentNames,

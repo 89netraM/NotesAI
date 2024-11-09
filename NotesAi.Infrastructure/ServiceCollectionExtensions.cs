@@ -18,4 +18,11 @@ public static class ServiceCollectionExtensions
             .AddSingleton<MarkdownContentReader>()
             .AddSingleton<IDocumentReader<FileDocumentInfo>, FileDocumentReader>()
             .AddSingleton<DocumentService<FileDocumentInfo>>();
+
+    public static IServiceCollection AddOpenAiServices(this IServiceCollection services)
+    {
+        services.AddOptions<OpenAiConfig>().BindConfiguration("OpenAi");
+        services.AddSingleton<IEmbeddingService, OpenAiEmbeddingService>();
+        return services;
+    }
 }

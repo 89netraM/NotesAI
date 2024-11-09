@@ -1,11 +1,18 @@
 using System;
+using System.IO;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace NotesAi.Infrastructure.Db;
 
-public class DocumentDbContext(IConfiguration configuration) : DbContext
+public class DocumentDbContext(IConfiguration configuration, ILoggerFactory loggerFactory) : DbContext
 {
     private readonly string connectionString =
         configuration.GetConnectionString("DocumentDatabase") ?? throw new NoConnectionStringException();
@@ -14,7 +21,10 @@ public class DocumentDbContext(IConfiguration configuration) : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder options)
     {
-        options.UseSqlite(connectionString);
+        var connection = new SqliteConnection(connectionString);
+        connection.LoadExtension(GetVectorliteExtensionPath());
+        options.UseSqlite(connection, options => options.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery));
+        options.UseLoggerFactory(loggerFactory);
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -28,7 +38,21 @@ public class DocumentDbContext(IConfiguration configuration) : DbContext
             {
                 p.Ignore(p => p.DocumentId);
                 p.WithOwner().HasForeignKey(p => p.DocumentId);
-                p.HasKey(p => new { p.DocumentId, p.Index });
+                p.HasKey(p => p.Id);
+                p.HasIndex(p => new { p.DocumentId, p.Index }).IsUnique();
+                p.OwnsOne(
+                    p => p.Vector,
+                    v =>
+                    {
+                        v.WithOwner().HasForeignKey(v => v.RowId);
+                        v.HasKey(v => v.RowId);
+                        v.ToTable("DbParagraphVector", table => table.ExcludeFromMigrations());
+                        v.Property(v => v.RowId).HasColumnName("rowid");
+                        var embeddingProperty = v.Property(v => v.Embedding);
+                        embeddingProperty.HasColumnName("embedding").HasColumnType("BLOB");
+                        embeddingProperty.Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
+                    }
+                );
             }
         );
         documentEntity.OwnsOne(
@@ -44,9 +68,50 @@ public class DocumentDbContext(IConfiguration configuration) : DbContext
                     }
                 )
         );
+        documentEntity.Navigation(d => d.Metadata).IsRequired();
+    }
+
+    private static string GetVectorliteExtensionPath()
+    {
+        var rid = RuntimeInformation.RuntimeIdentifier;
+        var libFilename = rid switch
+        {
+            "win-x64" => "vectorlite.dll",
+            "osx-arm64" or "osx-x64" => "vectorlite.dylib",
+            "linux-x64" => "vectorlite.so",
+            _ => throw new UnsupportedVectorlitePlatformException(rid),
+        };
+
+        var exePath =
+            Assembly.GetExecutingAssembly()?.Location
+            ?? throw new NoVectorliteExtensionException("Could not find entry assembly");
+        var exeDir =
+            Path.GetDirectoryName(exePath)
+            ?? throw new NoVectorliteExtensionException($"Could not get parent directory of {exePath}");
+
+        var inExeDirPath = Path.Join(exeDir, libFilename);
+        if (File.Exists(inExeDirPath))
+        {
+            return inExeDirPath;
+        }
+
+        var inRuntimePath = Path.Combine(exeDir, "runtimes", rid, "native", libFilename);
+        if (File.Exists(inRuntimePath))
+        {
+            return inRuntimePath;
+        }
+
+        throw new NoVectorliteExtensionException(
+            $"Could not find {libFilename}, looked in {inExeDirPath} and {inRuntimePath}"
+        );
     }
 
     private class NoConnectionStringException : Exception;
+
+    private class UnsupportedVectorlitePlatformException(string rid)
+        : Exception($"Platform \"{rid}\" does not support Vectorlite");
+
+    private class NoVectorliteExtensionException(string message) : Exception(message);
 }
 
 public class DocumentDbContextFactory : IDesignTimeDbContextFactory<DocumentDbContext>
@@ -57,6 +122,6 @@ public class DocumentDbContextFactory : IDesignTimeDbContextFactory<DocumentDbCo
             .AddInMemoryCollection([new("ConnectionStrings:DocumentDatabase", "Data Source=documents.db")])
             .Build();
 
-        return new DocumentDbContext(configuration) { Documents = null! };
+        return new DocumentDbContext(configuration, NullLoggerFactory.Instance) { Documents = null! };
     }
 }

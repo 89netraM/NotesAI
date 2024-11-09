@@ -50,13 +50,14 @@ namespace NotesAi.Infrastructure.Migrations
                 name: "DbParagraph",
                 columns: table => new
                 {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false).Annotation("Sqlite:Autoincrement", true),
                     DocumentId = table.Column<Guid>(type: "TEXT", nullable: false),
                     Index = table.Column<int>(type: "INTEGER", nullable: false),
                     Text = table.Column<string>(type: "TEXT", nullable: false),
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_DbParagraph", x => new { x.DocumentId, x.Index });
+                    table.PrimaryKey("PK_DbParagraph", x => x.Id);
                     table.ForeignKey(
                         name: "FK_DbParagraph_Documents_DocumentId",
                         column: x => x.DocumentId,
@@ -67,7 +68,23 @@ namespace NotesAi.Infrastructure.Migrations
                 }
             );
 
+            migrationBuilder.CreateIndex(
+                name: "IX_DbParagraph_DocumentId_Index",
+                table: "DbParagraph",
+                columns: new[] { "DocumentId", "Index" },
+                unique: true
+            );
+
             migrationBuilder.CreateIndex(name: "IX_Documents_Name", table: "Documents", column: "Name", unique: true);
+            migrationBuilder.Sql(
+                """
+                CREATE VIRTUAL TABLE "DbParagraphVector" USING vectorlite(embedding float32[256], hnsw(max_elements=100), "./.notesai/vector.index");
+
+                CREATE TRIGGER OnDeleteDbParagraphDeleteDbParagraphVector AFTER DELETE ON DbParagraph BEGIN
+                    DELETE FROM DbParagraphVector WHERE rowid = old."RowId";
+                END;
+                """
+            );
         }
 
         /// <inheritdoc />
@@ -78,6 +95,8 @@ namespace NotesAi.Infrastructure.Migrations
             migrationBuilder.DropTable(name: "DbParagraph");
 
             migrationBuilder.DropTable(name: "Documents");
+
+            migrationBuilder.DropTable(name: "DbParagraphVector");
         }
     }
 }

@@ -1,6 +1,7 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <UserSecretsId>8f68a987-1ab1-44e1-baac-13e769a561f1</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\NotesAi.Domain\NotesAi.Domain.csproj" />

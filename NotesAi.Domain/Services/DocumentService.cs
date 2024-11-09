@@ -11,7 +11,8 @@ namespace NotesAi.Domain.Services;
 public class DocumentService<TDocumentInfo>(
     ILogger<DocumentService<TDocumentInfo>> logger,
     IDocumentRepository documentRepo,
-    IDocumentReader<TDocumentInfo> documentReader
+    IDocumentReader<TDocumentInfo> documentReader,
+    IEmbeddingService embeddingService
 )
     where TDocumentInfo : IDocumentInfo
 {
@@ -37,7 +38,11 @@ public class DocumentService<TDocumentInfo>(
                         existingDocument,
                         cancellationToken
                     );
-                    var success = await documentRepo.UpdateDocument(updatedDocument, cancellationToken);
+                    var embeddings = await embeddingService.GetEmbeddings(
+                        updatedDocument.Paragraphs.Select(p => p.Text),
+                        cancellationToken
+                    );
+                    var success = await documentRepo.UpdateDocument(updatedDocument, embeddings, cancellationToken);
                     if (!success)
                     {
                         logger.LogWarning("Tried to update non-existent document {Id}", updatedDocument.Id);
@@ -47,7 +52,11 @@ public class DocumentService<TDocumentInfo>(
             else
             {
                 var document = await documentReader.ReadNewDocument(documentInfo, cancellationToken);
-                await documentRepo.CreateDocument(document, cancellationToken);
+                var embeddings = await embeddingService.GetEmbeddings(
+                    document.Paragraphs.Select(p => p.Text),
+                    cancellationToken
+                );
+                await documentRepo.CreateDocument(document, embeddings, cancellationToken);
             }
         }
     }

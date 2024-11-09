@@ -11,7 +11,7 @@ using NotesAi.Infrastructure.Db;
 namespace NotesAi.Infrastructure.Migrations
 {
     [DbContext(typeof(DocumentDbContext))]
-    [Migration("20241102151816_InitialCreate")]
+    [Migration("20241109092110_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -80,26 +80,58 @@ namespace NotesAi.Infrastructure.Migrations
 
                     b.OwnsMany("NotesAi.Infrastructure.Db.DbParagraph", "Paragraphs", b1 =>
                         {
+                            b1.Property<int>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("INTEGER");
+
                             b1.Property<Guid>("DocumentId")
                                 .HasColumnType("TEXT");
 
                             b1.Property<int>("Index")
-                                .ValueGeneratedOnAdd()
                                 .HasColumnType("INTEGER");
 
                             b1.Property<string>("Text")
                                 .IsRequired()
                                 .HasColumnType("TEXT");
 
-                            b1.HasKey("DocumentId", "Index");
+                            b1.HasKey("Id");
+
+                            b1.HasIndex("DocumentId", "Index")
+                                .IsUnique();
 
                             b1.ToTable("DbParagraph");
 
                             b1.WithOwner()
                                 .HasForeignKey("DocumentId");
+
+                            b1.OwnsOne("NotesAi.Infrastructure.Db.DbParagraphVector", "Vector", b2 =>
+                                {
+                                    b2.Property<int>("RowId")
+                                        .HasColumnType("INTEGER")
+                                        .HasColumnName("rowid");
+
+                                    b2.Property<byte[]>("Embedding")
+                                        .IsRequired()
+                                        .HasColumnType("BLOB")
+                                        .HasColumnName("embedding");
+
+                                    b2.HasKey("RowId");
+
+                                    b2.ToTable("DbParagraphVector", null, t =>
+                                        {
+                                            t.ExcludeFromMigrations();
+                                        });
+
+                                    b2.WithOwner()
+                                        .HasForeignKey("RowId");
+                                });
+
+                            b1.Navigation("Vector")
+                                .IsRequired();
                         });
 
-                    b.Navigation("Metadata");
+                    b.Navigation("Metadata")
+                        .IsRequired();
 
                     b.Navigation("Paragraphs");
                 });

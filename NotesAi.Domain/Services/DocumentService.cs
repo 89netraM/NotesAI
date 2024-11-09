@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using NotesAi.Domain.Aggregates;
 using NotesAi.Domain.Repositories;
 
 namespace NotesAi.Domain.Services;
@@ -58,6 +60,24 @@ public class DocumentService<TDocumentInfo>(
                 );
                 await documentRepo.CreateDocument(document, embeddings, cancellationToken);
             }
+        }
+    }
+
+    public async IAsyncEnumerable<Document> SearchDocuments(
+        string query,
+        int count,
+        [EnumeratorCancellation] CancellationToken cancellationToken
+    )
+    {
+        if (await embeddingService.GetEmbeddings([query], cancellationToken) is not [var queryEmbedding])
+        {
+            logger.LogError("Could not produce an embedding for {}", query);
+            yield break;
+        }
+
+        await foreach (var document in documentRepo.ReadDocumentsForEmbedding(queryEmbedding, count, cancellationToken))
+        {
+            yield return document;
         }
     }
 }

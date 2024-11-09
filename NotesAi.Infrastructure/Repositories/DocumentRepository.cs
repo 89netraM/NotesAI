@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -36,6 +37,34 @@ public class DocumentRepository(DocumentDbContext dbContext) : IDocumentReposito
             .Where(d => documentNames.Contains(d.Name))
             .AsAsyncEnumerable()
             .Select(MapDocumentToDomainModel);
+
+    public async IAsyncEnumerable<Document> ReadDocumentsForEmbedding(
+        ReadOnlyMemory<float> embedding,
+        int count,
+        [EnumeratorCancellation] CancellationToken cancellationToken
+    )
+    {
+        var paragraphIds = await dbContext
+            .Database.SqlQuery<int>(
+                $"""
+                SELECT rowid
+                FROM DbParagraphVector
+                WHERE knn_search(embedding, knn_param({MapEmbeddingToDbModel(embedding)}, {count}))
+                """
+            )
+            .ToArrayAsync(cancellationToken);
+        var documentsQuery = dbContext
+            .Documents.AsNoTracking()
+            .Include(d => d.Paragraphs!)
+            .Include(d => d.Metadata!)
+            .ThenInclude(m => m.Properties!)
+            .Where(d => d.Paragraphs!.Any(p => paragraphIds.Contains(p.Id)))
+            .AsAsyncEnumerable();
+        await foreach (var dbDocument in documentsQuery.WithCancellation(cancellationToken))
+        {
+            yield return MapDocumentToDomainModel(dbDocument);
+        }
+    }
 
     public async Task<bool> UpdateDocument(
         Document document,
@@ -76,7 +105,7 @@ public class DocumentRepository(DocumentDbContext dbContext) : IDocumentReposito
     private static DbParagraph MapParagraphToDbModel((Paragraph, ReadOnlyMemory<float>) pair, int i)
     {
         var (paragraph, embedding) = pair;
-        var dbEmbedding = MemoryMarshal.AsBytes(embedding.Span).ToArray();
+        var dbEmbedding = MapEmbeddingToDbModel(embedding);
         return new()
         {
             Index = i + 1,
@@ -84,6 +113,9 @@ public class DocumentRepository(DocumentDbContext dbContext) : IDocumentReposito
             Vector = new() { Embedding = dbEmbedding },
         };
     }
+
+    private static byte[] MapEmbeddingToDbModel(ReadOnlyMemory<float> embedding) =>
+        MemoryMarshal.AsBytes(embedding.Span).ToArray();
 
     private static DbMetadata MapMetadataToDbModel(Metadata metadata) =>
         new()

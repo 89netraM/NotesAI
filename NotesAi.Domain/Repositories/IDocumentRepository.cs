@@ -19,6 +19,12 @@ public interface IDocumentRepository
         CancellationToken cancellationToken
     );
 
+    public IAsyncEnumerable<Document> ReadDocumentsForEmbedding(
+        ReadOnlyMemory<float> embedding,
+        int count,
+        CancellationToken cancellationToken
+    );
+
     public Task<bool> UpdateDocument(
         Document document,
         IEnumerable<ReadOnlyMemory<float>> embeddings,

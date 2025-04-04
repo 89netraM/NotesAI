@@ -58,9 +58,43 @@ internal class Program
 
         if (arguments.Query is string query)
         {
-            await foreach (var result in documentService.SearchDocuments(query, count: 3, CancellationToken.None))
+            await foreach (
+                var (document, matchIndex) in documentService.SearchDocuments(query, count: 3, CancellationToken.None)
+            )
             {
-                logger.LogInformation("{}", result);
+                logger.LogInformation(
+                    "Found matching paragraph in .\\{FileName} paragraph {MatchIndex}",
+                    document.Name,
+                    matchIndex
+                );
+                switch (matchIndex - 1 >= 0, matchIndex + 1 < document.Paragraphs.Count)
+                {
+                    case (true, true):
+                        logger.LogInformation(
+                            "Surrounding text:\n{Before}{Match}{After}",
+                            document.Paragraphs[matchIndex - 1].Text,
+                            document.Paragraphs[matchIndex].Text,
+                            document.Paragraphs[matchIndex + 1].Text
+                        );
+                        break;
+                    case (true, false):
+                        logger.LogInformation(
+                            "Surrounding text:\n{Before}{Match}",
+                            document.Paragraphs[matchIndex - 1].Text,
+                            document.Paragraphs[matchIndex].Text
+                        );
+                        break;
+                    case (false, true):
+                        logger.LogInformation(
+                            "Surrounding text:\n{Match}{After}",
+                            document.Paragraphs[matchIndex].Text,
+                            document.Paragraphs[matchIndex + 1].Text
+                        );
+                        break;
+                    case (false, false):
+                        logger.LogInformation("Surrounding text:\n{Match}", document.Paragraphs[matchIndex].Text);
+                        break;
+                }
             }
         }
     }

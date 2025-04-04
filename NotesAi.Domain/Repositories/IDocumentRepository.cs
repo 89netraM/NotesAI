@@ -19,7 +19,7 @@ public interface IDocumentRepository
         CancellationToken cancellationToken
     );
 
-    public IAsyncEnumerable<Document> ReadDocumentsForEmbedding(
+    public IAsyncEnumerable<(Document, int)> ReadDocumentsForEmbedding(
         ReadOnlyMemory<float> embedding,
         int count,
         CancellationToken cancellationToken

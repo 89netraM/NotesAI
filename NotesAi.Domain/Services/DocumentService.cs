@@ -63,7 +63,7 @@ public class DocumentService<TDocumentInfo>(
         }
     }
 
-    public async IAsyncEnumerable<Document> SearchDocuments(
+    public async IAsyncEnumerable<(Document, int)> SearchDocuments(
         string query,
         int count,
         [EnumeratorCancellation] CancellationToken cancellationToken
@@ -75,9 +75,15 @@ public class DocumentService<TDocumentInfo>(
             yield break;
         }
 
-        await foreach (var document in documentRepo.ReadDocumentsForEmbedding(queryEmbedding, count, cancellationToken))
+        await foreach (
+            var (document, matchIndex) in documentRepo.ReadDocumentsForEmbedding(
+                queryEmbedding,
+                count,
+                cancellationToken
+            )
+        )
         {
-            yield return document;
+            yield return (document, matchIndex);
         }
     }
 }

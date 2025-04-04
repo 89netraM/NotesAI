@@ -48,6 +48,7 @@ public class DocumentDbContext(IConfiguration configuration, ILoggerFactory logg
                         v.HasKey(v => v.RowId);
                         v.ToTable("DbParagraphVector", table => table.ExcludeFromMigrations());
                         v.Property(v => v.RowId).HasColumnName("rowid");
+                        v.OwnedEntityType.UseSqlReturningClause(false);
                         var embeddingProperty = v.Property(v => v.Embedding);
                         embeddingProperty.HasColumnName("embedding").HasColumnType("BLOB");
                         embeddingProperty.Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);

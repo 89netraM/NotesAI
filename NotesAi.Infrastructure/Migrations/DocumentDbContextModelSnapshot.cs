@@ -119,6 +119,8 @@ namespace NotesAi.Infrastructure.Migrations
                                             t.ExcludeFromMigrations();
                                         });
 
+                                    b2.HasAnnotation("Sqlite:UseSqlReturningClause", false);
+
                                     b2.WithOwner()
                                         .HasForeignKey("RowId");
                                 });

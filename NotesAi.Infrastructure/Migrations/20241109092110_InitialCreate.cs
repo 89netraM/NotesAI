@@ -78,7 +78,7 @@ namespace NotesAi.Infrastructure.Migrations
             migrationBuilder.CreateIndex(name: "IX_Documents_Name", table: "Documents", column: "Name", unique: true);
             migrationBuilder.Sql(
                 """
-                CREATE VIRTUAL TABLE "DbParagraphVector" USING vectorlite(embedding float32[256], hnsw(max_elements=100), "./.notesai/vector.index");
+                CREATE VIRTUAL TABLE "DbParagraphVector" USING vectorlite(embedding float32[768], hnsw(max_elements=9999), "./.notesai/vector.index");
 
                 CREATE TRIGGER OnDeleteDbParagraphDeleteDbParagraphVector AFTER DELETE ON DbParagraph BEGIN
                     DELETE FROM DbParagraphVector WHERE rowid = old."RowId";

@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NotesAi.Domain.Aggregates;
 using NotesAi.Domain.Aggregates.Entities;
 using NotesAi.Domain.Repositories;
@@ -13,7 +14,7 @@ using NotesAi.Infrastructure.Db;
 
 namespace NotesAi.Infrastructure.Repositories;
 
-public class DocumentRepository(DocumentDbContext dbContext) : IDocumentRepository
+public class DocumentRepository(ILogger<DocumentRepository> logger, DocumentDbContext dbContext) : IDocumentRepository
 {
     public async Task CreateDocument(
         Document document,
@@ -38,7 +39,7 @@ public class DocumentRepository(DocumentDbContext dbContext) : IDocumentReposito
             .AsAsyncEnumerable()
             .Select(MapDocumentToDomainModel);
 
-    public async IAsyncEnumerable<Document> ReadDocumentsForEmbedding(
+    public async IAsyncEnumerable<(Document, int)> ReadDocumentsForEmbedding(
         ReadOnlyMemory<float> embedding,
         int count,
         [EnumeratorCancellation] CancellationToken cancellationToken
@@ -62,7 +63,17 @@ public class DocumentRepository(DocumentDbContext dbContext) : IDocumentReposito
             .AsAsyncEnumerable();
         await foreach (var dbDocument in documentsQuery.WithCancellation(cancellationToken))
         {
-            yield return MapDocumentToDomainModel(dbDocument);
+            var document = MapDocumentToDomainModel(dbDocument);
+            var matchIndex = dbDocument.Paragraphs?.FirstOrDefault(p => paragraphIds.Contains(p.Id))?.Index;
+            if (matchIndex is not int matchIndexValue)
+            {
+                logger.LogWarning(
+                    "Document {DocumentId} does not contain any matching paragraphs for the given embedding",
+                    dbDocument.Id
+                );
+                continue;
+            }
+            yield return (document, matchIndexValue - 1);
         }
     }
 

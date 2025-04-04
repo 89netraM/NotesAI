@@ -1,7 +1,9 @@
+using System;
+
 namespace NotesAi.Infrastructure;
 
-public class OpenAiConfig
+public class OllamaConfig
 {
-    public required string ApiKey { get; init; }
+    public required Uri Endpoint { get; init; }
     public required string EmbeddingModel { get; init; }
 }

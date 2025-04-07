@@ -40,7 +40,7 @@ public class DocumentService<TDocumentInfo>(
                         existingDocument,
                         cancellationToken
                     );
-                    var embeddings = await embeddingService.GetEmbeddings(
+                    var embeddings = await GetEmbeddings(
                         updatedDocument.Paragraphs.Select(p => p.Text),
                         cancellationToken
                     );
@@ -54,13 +54,27 @@ public class DocumentService<TDocumentInfo>(
             else
             {
                 var document = await documentReader.ReadNewDocument(documentInfo, cancellationToken);
-                var embeddings = await embeddingService.GetEmbeddings(
-                    document.Paragraphs.Select(p => p.Text),
-                    cancellationToken
-                );
+                var embeddings = await GetEmbeddings(document.Paragraphs.Select(p => p.Text), cancellationToken);
                 await documentRepo.CreateDocument(document, embeddings, cancellationToken);
             }
         }
+    }
+
+    private async Task<IReadOnlyList<ReadOnlyMemory<float>>> GetEmbeddings(
+        IEnumerable<string> texts,
+        CancellationToken cancellationToken
+    )
+    {
+        var textsArray = texts.ToArray();
+        var overlappingTexts = textsArray
+            .Prepend("")
+            .Zip(textsArray, (pre, curr) => string.IsNullOrWhiteSpace(pre) ? curr : $"{pre}\n{curr}")
+            .Zip(
+                textsArray.Skip(1).Append(""),
+                (curr, post) => string.IsNullOrWhiteSpace(post) ? curr : $"{curr}\n{post}"
+            );
+        var embeddings = await embeddingService.GetEmbeddings(overlappingTexts, cancellationToken);
+        return embeddings;
     }
 
     public async IAsyncEnumerable<(Document, int)> SearchDocuments(
